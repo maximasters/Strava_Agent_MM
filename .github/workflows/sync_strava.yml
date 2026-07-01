@@ -1,0 +1,53 @@
+name: Sync Strava Data Daily
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # Runs daily at 3:00 AM UTC
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to commit and push changes
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create credentials directory
+        run: mkdir -p data
+
+      - name: Create credentials file from GitHub Secrets
+        run: |
+          echo '{
+            "clientId": "${{ secrets.STRAVA_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.STRAVA_CLIENT_SECRET }}",
+            "refreshToken": "${{ secrets.STRAVA_REFRESH_TOKEN }}",
+            "accessToken": "",
+            "expiresAt": 0
+          }' > data/credentials.json
+
+      - name: Run Strava synchronization
+        run: npm run sync
+
+      - name: Commit and push updated activities data
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/activities.json
+          # Only commit and push if there are changes
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: auto-sync Strava activities data"
+            git push origin main
+          else
+            echo "No new Strava activities found. Skipping commit."
+          fi
