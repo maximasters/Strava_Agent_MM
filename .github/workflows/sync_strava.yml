@@ -23,31 +23,24 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create credentials directory
-        run: mkdir -p data
-
-      - name: Create credentials file from GitHub Secrets
-        run: |
-          echo '{
-            "clientId": "${{ secrets.STRAVA_CLIENT_ID }}",
-            "clientSecret": "${{ secrets.STRAVA_CLIENT_SECRET }}",
-            "refreshToken": "${{ secrets.STRAVA_REFRESH_TOKEN }}",
-            "accessToken": "",
-            "expiresAt": 0
-          }' > data/credentials.json
+      # REMOVED: "Create credentials file from GitHub Secrets"
+      # This step was wiping out your newly refreshed tokens on every run.
 
       - name: Run Strava synchronization
         run: npm run sync
 
-      - name: Commit and push updated activities data
+      - name: Commit and push updated data and tokens
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/activities.json
+          
+          # Stage BOTH the new activities AND the updated credentials file
+          git add data/activities.json data/credentials.json
+          
           # Only commit and push if there are changes
           if ! git diff-index --quiet HEAD; then
-            git commit -m "chore: auto-sync Strava activities data"
+            git commit -m "chore: auto-sync Strava activities and refresh tokens [skip ci]"
             git push origin main
           else
-            echo "No new Strava activities found. Skipping commit."
+            echo "No changes found. Skipping commit."
           fi
