@@ -1,0 +1,19 @@
+{
+  "name": "strava-marathon-dashboard",
+  "version": "1.0.0",
+  "description": "A beautiful web dashboard to compare marathon training blocks using Strava data.",
+  "type": "module",
+  "scripts": {
+    "auth": "node scripts/auth.js",
+    "sync": "node scripts/fetch_activities.js"
+  },
+  "keywords": [
+    "strava",
+    "marathon",
+    "training",
+    "dashboard",
+    "chart"
+  ],
+  "author": "",
+  "license": "MIT"
+}

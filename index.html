@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marathon Training Block Comparator</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <span class="emoji">🏃‍♂️</span>
+                <div class="title-group">
+                    <h1>Antigravity Run</h1>
+                    <p class="subtitle">Marathon Training Block Comparator</p>
+                </div>
+            </div>
+            <div class="header-controls">
+                <div class="toggle-container">
+                    <span class="toggle-label">Metric:</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="unit-toggle">
+                        <label for="unit-toggle">
+                            <span class="toggle-inner"></span>
+                            <span class="toggle-switch-btn"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="sync-status" id="sync-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Loading data...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar (Controls & Block Management) -->
+            <aside class="sidebar">
+                <!-- Manage Training Blocks -->
+                <div class="glass-card block-manager">
+                    <h2>Training Blocks</h2>
+                    <p class="section-desc">Select blocks to compare or add a new one.</p>
+                    
+                    <div class="blocks-list" id="blocks-list">
+                        <!-- Dynamically populated -->
+                    </div>
+
+                    <button class="btn btn-secondary" id="show-add-form-btn">+ Add Training Block</button>
+
+                    <!-- Add Block Form (Hidden by default) -->
+                    <form class="add-block-form hidden" id="add-block-form">
+                        <h3>New Training Block</h3>
+                        <div class="form-group">
+                            <label for="block-name">Block Name</label>
+                            <input type="text" id="block-name" placeholder="e.g. Boston 2025" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="race-date">Race Date</label>
+                            <input type="date" id="race-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="block-color">Chart Color</label>
+                            <div class="color-picker-group">
+                                <input type="color" id="block-color" value="#fc4c02">
+                                <span class="color-value">#fc4c02</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="target-distance">Target Race Distance</label>
+                            <select id="target-distance" required style="width: 100%; padding: 0.6rem; border-radius: 8px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); color: var(--text-primary); font-family: inherit; margin-top: 0.25rem;">
+                                <option value="42195">Marathon (26.2 mi / 42.2 km)</option>
+                                <option value="21097.5">Half Marathon (13.1 mi / 21.1 km)</option>
+                                <option value="10000">10K (6.2 mi / 10.0 km)</option>
+                                <option value="5000">5K (3.1 mi / 5.0 km)</option>
+                                <option value="50000">50K Ultra (31.1 mi / 50.0 km)</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Block</button>
+                            <button type="button" class="btn btn-text" id="cancel-add-btn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Benchmark Races Section -->
+                <div class="glass-card benchmark-races-box" style="margin-top: 1.5rem;">
+                    <h3>🏆 Benchmark Races</h3>
+                    <p class="section-desc" style="margin-bottom: 0.75rem;">Add specific activities from your Strava history as baselines for predictions.</p>
+                    
+                    <div class="baseline-races-list" id="baseline-races-list">
+                        <!-- Dynamically populated list of benchmark races -->
+                    </div>
+                    
+                    <div class="baseline-search-group">
+                        <input type="text" id="baseline-search-input" placeholder="Search race name (e.g. Newport)...">
+                        <button type="button" class="btn btn-secondary" id="btn-search-baselines">Search</button>
+                    </div>
+                    
+                    <div class="baseline-search-results hidden" id="baseline-search-results">
+                        <!-- Dynamic search results -->
+                    </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="glass-card info-box">
+                    <h3>💡 How it works</h3>
+                    <p>A training block consists of a <strong>20-week period (140 days)</strong> ending on the date of your race.</p>
+                    <p>Week 20 represents your race week, ending on the race day itself. All prior weeks are aligned relatively (Monday through Sunday) based on the race day-of-week.</p>
+                    <p>Runs are filtered and aggregated automatically from your Strava activity history.</p>
+                </div>
+            </aside>
+
+            <!-- Dashboard Content -->
+            <main class="dashboard-content">
+                <!-- Summary Table Section -->
+                <section class="glass-card comparison-section">
+                    <h2>Side-by-Side Summary</h2>
+                    <div class="table-container">
+                        <table class="comparison-table" id="comparison-table">
+                            <thead>
+                                <tr id="table-headers">
+                                    <th>Metric</th>
+                                    <!-- Dynamic headers -->
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Race Predictor & Training Analysis Section -->
+                <section class="predictor-section" id="predictor-section">
+                    <h2>Race Predictor & Training Analysis</h2>
+                    <div class="predictor-grid" id="predictor-grid">
+                        <!-- Dynamically populated cards -->
+                    </div>
+                </section>
+
+                <!-- Charts Grid -->
+                <section class="charts-grid">
+                    <!-- Weekly Mileage -->
+                    <div class="glass-card chart-card">
+                        <div class="chart-header">
+                            <h3>Weekly Volume</h3>
+                            <span class="chart-unit">Miles / Week</span>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="weekly-mileage-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Cumulative Volume -->
+                    <div class="glass-card chart-card">
+                        <div class="chart-header">
+                            <h3>Cumulative Mileage</h3>
+                            <span class="chart-unit">Total Miles</span>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="cumulative-mileage-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Long Run Progression -->
+                    <div class="glass-card chart-card">
+                        <div class="chart-header">
+                            <h3>Weekly Long Run</h3>
+                            <span class="chart-unit">Longest Run (Miles)</span>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="long-run-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Average Pace Progression -->
+                    <div class="glass-card chart-card">
+                        <div class="chart-header">
+                            <h3>Weekly Average Pace</h3>
+                            <span class="chart-unit">Min / Mile</span>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="pace-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Pace Distribution Section -->
+                    <div class="glass-card chart-card" style="grid-column: span 2; min-height: 420px;">
+                        <div class="chart-header">
+                            <h3>Pace Distribution (Aerobic Profile)</h3>
+                            <span class="chart-unit" id="pace-distribution-unit">Total Miles</span>
+                        </div>
+                        <p class="section-desc" style="margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                            Profile of total mileage logged within 30-second pace buckets (split kilometer-by-kilometer).
+                        </p>
+                        <div class="chart-wrapper" style="flex-grow: 1; height: 320px;">
+                            <canvas id="pace-distribution-chart"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
