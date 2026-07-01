@@ -13,12 +13,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '22' # Specified Node 22 (LTS) to avoid deprecated Node 20 runtimes
+          node-version: '22' # Using Node 22 LTS
 
       - name: Install dependencies
         run: npm install
