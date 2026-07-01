@@ -9,7 +9,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to commit and push changes
+      contents: write # Required to commit data changes
 
     steps:
       - name: Checkout repository
@@ -18,29 +18,57 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22' # Using Node 22 LTS
+          node-version: '22'
 
       - name: Install dependencies
         run: npm install
 
-      # REMOVED: "Create credentials file from GitHub Secrets"
-      # This step was wiping out your newly refreshed tokens on every run.
+      - name: Create data directory
+        run: mkdir -p data
+
+      # 1. Dynamically build the gitignored credentials file before the script runs
+      - name: Create credentials file from GitHub Secrets/Vars
+        run: |
+          echo '{
+            "clientId": "${{ secrets.STRAVA_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.STRAVA_CLIENT_SECRET }}",
+            "refreshToken": "${{ vars.STRAVA_REFRESH_TOKEN }}",
+            "accessToken": "",
+            "expiresAt": 0
+          }' > data/credentials.json
 
       - name: Run Strava synchronization
         run: npm run sync
 
-      - name: Commit and push updated data and tokens
+      # 2. Extract the brand-new refresh token and save it back to GitHub variables for next time
+      - name: Update Strava Refresh Token Variable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_REFRESH_TOKEN=$(node -e "console.log(require('./data/credentials.json').refreshToken)")
+          
+          curl -L \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/${{ github.repository }}/actions/variables/STRAVA_REFRESH_TOKEN \
+            -d "{\"name\":\"STRAVA_REFRESH_TOKEN\",\"value\":\"$NEW_REFRESH_TOKEN\"}"
+
+      # 3. Commit only the activities data (keeping credentials safely gitignored)
+      - name: Commit and push updated activities data
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          # Stage BOTH the new activities AND the updated credentials file
-          git add data/activities.json data/credentials.json
-          
-          # Only commit and push if there are changes
-          if ! git diff-index --quiet HEAD; then
-            git commit -m "chore: auto-sync Strava activities and refresh tokens [skip ci]"
-            git push origin main
+          if [ -f data/activities.json ]; then
+            git add data/activities.json
+            if ! git diff-index --quiet HEAD; then
+              git commit -m "chore: auto-sync Strava activities data [skip ci]"
+              git push origin main
+            else
+              echo "No new activities found."
+            fi
           else
-            echo "No changes found. Skipping commit."
+            echo "activities.json not found, skipping commit."
           fi
