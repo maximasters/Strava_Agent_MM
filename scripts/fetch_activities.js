@@ -79,8 +79,7 @@ async function main() {
         let token = credentials.accessToken;
 
         if (credentials.expiresAt - nowInSeconds < fiveMinutes) {
-            credentials = await refreshAccessToken(credentials);
-            token = credentials.accessToken;
+            token = await refreshAccessToken(credentials);
         }
 
         console.log('Fetching activities from Strava...');
