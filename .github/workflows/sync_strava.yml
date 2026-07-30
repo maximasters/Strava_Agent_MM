@@ -2,14 +2,14 @@ name: Sync Strava Data Daily
 
 on:
   schedule:
-    - cron: '0 3 * * *' # Runs daily at 3:00 AM UTC
+    - cron: '30 5 * * *' # Runs daily at 5:30 AM UTC (6:30 AM BST local time)
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to commit data changes
+      contents: write # Required to commit data and encrypted credentials changes
 
     steps:
       - name: Checkout repository
@@ -26,49 +26,33 @@ jobs:
       - name: Create data directory
         run: mkdir -p data
 
-      # 1. Dynamically build the gitignored credentials file before the script runs
-      - name: Create credentials file from GitHub Secrets/Vars
+      # 1. Decrypt credentials file before running sync
+      - name: Decrypt Credentials File
         run: |
-          echo '{
-            "clientId": "${{ secrets.STRAVA_CLIENT_ID }}",
-            "clientSecret": "${{ secrets.STRAVA_CLIENT_SECRET }}",
-            "refreshToken": "${{ vars.STRAVA_REFRESH_TOKEN }}",
-            "accessToken": "",
-            "expiresAt": 0
-          }' > data/credentials.json
+          node scripts/crypt.js decrypt data/credentials.json.enc data/credentials.json "${{ secrets.CREDENTIALS_PASSPHRASE }}"
 
       - name: Run Strava synchronization
         run: npm run sync
 
-      # 2. Extract the brand-new refresh token and save it back to GitHub variables for next time
-      - name: Update Strava Refresh Token Variable
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 2. Re-encrypt the updated credentials file (which has rotated refresh tokens)
+      - name: Encrypt Updated Credentials File
         run: |
-          NEW_REFRESH_TOKEN=$(node -e "console.log(require('./data/credentials.json').refreshToken)")
-          
-          curl -L \
-            -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/${{ github.repository }}/actions/variables/STRAVA_REFRESH_TOKEN \
-            -d "{\"name\":\"STRAVA_REFRESH_TOKEN\",\"value\":\"$NEW_REFRESH_TOKEN\"}"
+          node scripts/crypt.js encrypt data/credentials.json data/credentials.json.enc "${{ secrets.CREDENTIALS_PASSPHRASE }}"
 
-      # 3. Commit only the activities data (keeping credentials safely gitignored)
+      # 3. Commit the updated activities data and the encrypted credentials file
       - name: Commit and push updated activities data
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
+          git add data/credentials.json.enc
           if [ -f data/activities.json ]; then
             git add data/activities.json
-            if ! git diff-index --quiet HEAD; then
-              git commit -m "chore: auto-sync Strava activities data [skip ci]"
-              git push origin main
-            else
-              echo "No new activities found."
-            fi
+          fi
+          
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: auto-sync Strava activities and credentials [skip ci]"
+            git push origin main
           else
-            echo "activities.json not found, skipping commit."
+            echo "No changes detected. Skipping commit."
           fi
