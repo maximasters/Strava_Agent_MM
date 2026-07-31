@@ -745,6 +745,15 @@ function renderComparisonTable(blockData) {
             valFunc: (d) => `<span class="highlight-val">${convertDistance(d.summary.totalDistance).toFixed(1)}</span> ${unit}`
         },
         {
+            label: 'Total Running Time',
+            valFunc: (d) => {
+                const totalSeconds = d.summary.totalTime;
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                return hours > 0 ? `<span class="highlight-val">${hours}</span>h <span class="highlight-val">${minutes}</span>m` : `<span class="highlight-val">${minutes}</span>m`;
+            }
+        },
+        {
             label: 'Avg. Weekly Distance',
             valFunc: (d) => `${convertDistance(d.summary.avgWeeklyDistance).toFixed(1)} ${unit} / wk`
         },
@@ -761,23 +770,21 @@ function renderComparisonTable(blockData) {
             valFunc: (d) => `${formatPace(d.summary.avgPaceMps)} / ${unit}`
         },
         {
-            label: isMetric ? 'Long Runs (≥15 / ≥20 / ≥25 / ≥30 km)' : 'Long Runs (≥10 / ≥15 / ≥20 / ≥25 mi)',
+            label: isMetric ? 'Long Runs (≥15 / ≥20 / ≥25 km)' : 'Long Runs (≥10 / ≥15 / ≥20 mi)',
             valFunc: (d) => {
-                let count1, count2, count3, count4;
+                let count1, count2, count3;
                 if (isMetric) {
-                    // 15km = 15000m, 20km = 20000m, 25km = 25000m, 30km = 30000m
+                    // 15km = 15000m, 20km = 20000m, 25km = 25000m
                     count1 = d.weeks.reduce((sum, w) => sum + w.runs.filter(r => r.distance >= 15000).length, 0);
                     count2 = d.weeks.reduce((sum, w) => sum + w.runs.filter(r => r.distance >= 20000).length, 0);
                     count3 = d.weeks.reduce((sum, w) => sum + w.runs.filter(r => r.distance >= 25000).length, 0);
-                    count4 = d.weeks.reduce((sum, w) => sum + w.runs.filter(r => r.distance >= 30000).length, 0);
                 } else {
-                    // 10mi = 16093.4m, 15mi = 24140.2m, 20mi = 32186.8m, 25mi = 40233.6m
+                    // 10mi = 16093.4m, 15mi = 24140.2m, 20mi = 32186.8m
                     count1 = d.weeks.reduce((sum, w) => sum + w.runs.filter(r => metersToMiles(r.distance) >= 10).length, 0);
                     count2 = d.weeks.reduce((sum, w) => sum + w.runs.filter(r => metersToMiles(r.distance) >= 15).length, 0);
                     count3 = d.weeks.reduce((sum, w) => sum + w.runs.filter(r => metersToMiles(r.distance) >= 20).length, 0);
-                    count4 = d.weeks.reduce((sum, w) => sum + w.runs.filter(r => metersToMiles(r.distance) >= 25).length, 0);
                 }
-                return `<span class="highlight-val">${count1}</span> / <span class="highlight-val">${count2}</span> / <span class="highlight-val">${count3}</span> / <span class="highlight-val">${count4}</span>`;
+                return `<span class="highlight-val">${count1}</span> / <span class="highlight-val">${count2}</span> / <span class="highlight-val">${count3}</span>`;
             }
         },
         {
