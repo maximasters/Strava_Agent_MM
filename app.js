@@ -57,6 +57,7 @@ async function init() {
     loadSettings();
     setupEventListeners();
     await loadData();
+    renderLatestRun();
     renderBlockManager();
     renderBaselineRaces();
     updateDashboard();
@@ -100,6 +101,9 @@ function setupEventListeners() {
     unitToggle.addEventListener('change', (e) => {
         isMetric = e.target.checked;
         localStorage.setItem('isMetric', JSON.stringify(isMetric));
+        renderLatestRun();
+        renderBlockManager();
+        renderBaselineRaces();
         updateDashboard();
     });
 
@@ -556,8 +560,26 @@ function processBlock(block) {
         return runDate >= startWindow && runDate <= endWindow;
     });
 
-    // Map runs to weeks (Week 1 to Week 20)
+    // Find the longest run of the target race/event day regardless of distance (to extract it from training metrics)
+    const raceDayStart = new Date(raceDateObj.getTime());
+    raceDayStart.setHours(0, 0, 0, 0);
+    const raceDayEnd = new Date(raceDateObj.getTime());
+    raceDayEnd.setHours(23, 59, 59, 999);
+
+    const raceDayRuns = blockRuns.filter(run => {
+        const runDate = new Date(run.start_date_local);
+        return runDate >= raceDayStart && runDate <= raceDayEnd;
+    });
+
+    const raceActivity = raceDayRuns.length > 0
+        ? raceDayRuns.reduce((longest, current) => current.distance > longest.distance ? current : longest, raceDayRuns[0])
+        : null;
+
+    // Map runs to weeks (Week 1 to Week 20), excluding the race day performance itself from training statistics
     blockRuns.forEach(run => {
+        if (raceActivity && run.id === raceActivity.id) {
+            return; // Skip race day performance from training logs/stats
+        }
         const runDate = new Date(run.start_date_local);
         const diffTime = endWindow.getTime() - runDate.getTime();
         const diffDays = diffTime / (1000 * 60 * 60 * 24);
@@ -590,19 +612,25 @@ function processBlock(block) {
         }
     });
 
-    // Block summary metrics calculations
+    // Block summary metrics calculations (excluding race activity since weeks exclude it)
     const totalDistance = weeks.reduce((sum, w) => sum + w.totalDistance, 0);
     const totalTime = weeks.reduce((sum, w) => sum + w.totalTime, 0);
     const totalRuns = weeks.reduce((sum, w) => sum + w.runs.length, 0);
     
-    // Average Running Pace (excludes cross training runs)
-    const blockRunningRuns = blockRuns.filter(r => r.average_speed && r.average_speed >= 2.980265);
+    // Average Running Pace (excludes cross training runs and the race day performance itself)
+    const blockRunningRuns = blockRuns.filter(r => {
+        if (raceActivity && r.id === raceActivity.id) return false;
+        return r.average_speed && r.average_speed >= 2.980265;
+    });
     const blockRunningDistance = blockRunningRuns.reduce((sum, r) => sum + r.distance, 0);
     const blockRunningTime = blockRunningRuns.reduce((sum, r) => sum + r.moving_time, 0);
     const avgPaceMps = blockRunningTime > 0 ? (blockRunningDistance / blockRunningTime) : 0;
     
-    // Average Heart Rate (includes all runs that have HR data)
-    const hrRuns = blockRuns.filter(r => r.has_heartrate && r.average_heartrate > 0);
+    // Average Heart Rate (includes all training runs that have HR data, excluding the race itself)
+    const hrRuns = blockRuns.filter(r => {
+        if (raceActivity && r.id === raceActivity.id) return false;
+        return r.has_heartrate && r.average_heartrate > 0;
+    });
     const avgHeartRate = hrRuns.length > 0
         ? Math.round(hrRuns.reduce((sum, r) => sum + r.average_heartrate, 0) / hrRuns.length)
         : null;
@@ -617,22 +645,7 @@ function processBlock(block) {
         }
     });
 
-    // Find the longest run of the target race/event day regardless of distance
-    const raceDayStart = new Date(raceDateObj.getTime());
-    raceDayStart.setHours(0, 0, 0, 0);
-    const raceDayEnd = new Date(raceDateObj.getTime());
-    raceDayEnd.setHours(23, 59, 59, 999);
-
-    const raceDayRuns = blockRuns.filter(run => {
-        const runDate = new Date(run.start_date_local);
-        return runDate >= raceDayStart && runDate <= raceDayEnd;
-    });
-
-    const raceActivity = raceDayRuns.length > 0
-        ? raceDayRuns.reduce((longest, current) => current.distance > longest.distance ? current : longest, raceDayRuns[0])
-        : null;
-
-    const peakLongRunDistance = Math.max(...weeks.map(w => w.longestRun));
+    const peakLongRunDistance = Math.max(...weeks.map(w => w.longestRun), 0);
 
     return {
         block,
@@ -1694,6 +1707,40 @@ function renderBaselineRaces() {
         
         list.appendChild(item);
     });
+}
+
+// Render the latest synced run in the sidebar
+function renderLatestRun() {
+    const container = document.getElementById('latest-run-container');
+    if (!container || !activities || activities.length === 0) return;
+
+    // Find the latest run (most recent start_date_local)
+    const sorted = [...activities].sort((a, b) => new Date(b.start_date_local) - new Date(a.start_date_local));
+    const latest = sorted[0];
+
+    const dateStr = new Date(latest.start_date_local).toLocaleDateString(undefined, { 
+        year: 'numeric', month: 'short', day: 'numeric' 
+    });
+    
+    const unit = getDistanceUnit();
+    const distanceVal = convertDistance(latest.distance).toFixed(2);
+    const timeStr = formatDuration(latest.moving_time);
+    
+    // Check if it's a cross training run (average pace slower than 9:00/mile, i.e., average_speed < 2.980265)
+    const isCrossTraining = latest.average_speed < 2.980265;
+    const paceStr = isCrossTraining ? '' : ` @ ${formatPace(latest.distance / latest.moving_time)}/${unit}`;
+    
+    container.innerHTML = `
+        <div class="latest-run-details" style="font-size: 0.85rem; line-height: 1.4;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                <strong style="color: var(--success);">${latest.name}</strong>
+                <span style="color: var(--text-muted); font-size: 0.75rem;">${dateStr}</span>
+            </div>
+            <div style="color: var(--text-primary); font-weight: 500;">
+                Distance: <span style="color: var(--secondary);">${distanceVal} ${unit}</span> | Time: <span style="color: var(--secondary);">${timeStr}</span>${paceStr}
+            </div>
+        </div>
+    `;
 }
 
 // Generate simulated individual kilometer splits for a run to get realistic kilometer-by-kilometer pace distribution
