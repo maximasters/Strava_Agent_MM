@@ -287,7 +287,8 @@ function openEditForm(block) {
 async function loadData() {
     setSyncStatus('loading', 'Loading Strava data...');
     try {
-        const response = await fetch('data/activities.json');
+        // Append a timestamp cache-buster to prevent the browser from serving cached data
+        const response = await fetch('data/activities.json?t=' + Date.now());
         if (!response.ok) {
             throw new Error(`Data file not found (HTTP ${response.status})`);
         }
