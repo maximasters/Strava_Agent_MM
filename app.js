@@ -1482,21 +1482,36 @@ function calculatePrediction(summary, blockName, block) {
     let candidates = [];
     let baselineSource = '';
     
+    let useFallback = false;
     if (baselineRaces.length > 0) {
-        // Use ONLY user-defined benchmark races
-        candidates = baselineRaces.map(r => ({
-            name: r.name,
-            date: r.date,
-            distance: r.distance,
-            elapsed_time: r.elapsed_time,
-            speed: r.distance / r.elapsed_time, // Use elapsed_time!
-            type: 'user-defined'
-        }));
-        baselineSource = 'user benchmark races';
+        // Use ONLY user-defined benchmark races that occurred before this block's race date
+        const filteredRaces = blockRaceDate
+            ? baselineRaces.filter(r => new Date(r.date) < new Date(blockRaceDate))
+            : baselineRaces;
+            
+        if (filteredRaces.length > 0) {
+            candidates = filteredRaces.map(r => ({
+                name: r.name,
+                date: r.date,
+                distance: r.distance,
+                elapsed_time: r.elapsed_time,
+                speed: r.distance / r.elapsed_time, // Use elapsed_time!
+                type: 'user-defined'
+            }));
+            baselineSource = 'user benchmark races';
+        } else {
+            useFallback = true;
+        }
     } else {
-        // Fallback 1: Scan completed blocks for race activities
+        useFallback = true;
+    }
+    
+    if (useFallback) {
+        // Fallback 1: Scan completed blocks for race activities that occurred before this block
         trainingBlocks.forEach(b => {
             if (blockId && b.id === blockId) return;
+            if (blockRaceDate && new Date(b.raceDate) >= new Date(blockRaceDate)) return;
+            
             const data = processBlock(b);
             if (data.summary.raceActivity) {
                 candidates.push({
@@ -1510,7 +1525,7 @@ function calculatePrediction(summary, blockName, block) {
             }
         });
         
-        // Fallback 2: Scan all activities for best efforts in standard brackets (PR scan)
+        // Fallback 2: Scan all activities for best efforts in standard brackets (PR scan) that occurred before this block
         if (candidates.length === 0) {
             const brackets = [
                 { name: '5K', min: 4800, max: 6000 },
@@ -1522,16 +1537,21 @@ function calculatePrediction(summary, blockName, block) {
             
             brackets.forEach(br => {
                 const runs = activities.filter(run => {
+                    const runDate = new Date(run.start_date_local);
                     if (blockRaceDate) {
                         const raceDateObj = new Date(blockRaceDate);
+                        
+                        // Exclude the runs in the target block's active training window
                         const startWindow = new Date(raceDateObj.getTime());
                         startWindow.setDate(raceDateObj.getDate() - 140);
                         startWindow.setHours(0, 0, 0, 0);
                         const endWindow = new Date(raceDateObj.getTime());
                         endWindow.setHours(23, 59, 59, 999);
                         
-                        const runDate = new Date(run.start_date_local);
                         if (runDate >= startWindow && runDate <= endWindow) return false;
+                        
+                        // Exclude any future runs (runs after the block's target race date)
+                        if (runDate >= raceDateObj) return false;
                     }
                     return run.distance >= br.min && run.distance <= br.max;
                 });
