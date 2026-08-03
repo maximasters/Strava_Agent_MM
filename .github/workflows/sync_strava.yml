@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required to commit data and encrypted credentials changes
+      actions: write  # Required to trigger workflow_dispatch for deploy.yml
 
     steps:
       - name: Checkout repository
@@ -56,3 +57,10 @@ jobs:
           else
             echo "No changes detected. Skipping commit."
           fi
+
+      # 4. Trigger the deployment workflow so the updated data is built and deployed
+      - name: Trigger Deployment Workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy.yml --ref main
