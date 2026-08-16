@@ -1,5 +1,18 @@
 [
   {
+    "id": 19751302613,
+    "name": "Morning Run",
+    "distance": 26098.8,
+    "moving_time": 7202,
+    "elapsed_time": 7914,
+    "total_elevation_gain": 401,
+    "start_date_local": "2026-08-15T10:31:43Z",
+    "average_speed": 3.624,
+    "max_speed": 5.02,
+    "has_heartrate": true,
+    "average_heartrate": 158.2
+  },
+  {
     "id": 19714524318,
     "name": "Afternoon Run",
     "distance": 10474.6,
