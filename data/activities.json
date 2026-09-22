@@ -1,5 +1,18 @@
 [
   {
+    "id": 20272321091,
+    "name": "Evening Run",
+    "distance": 7193.1,
+    "moving_time": 1881,
+    "elapsed_time": 1938,
+    "total_elevation_gain": 78,
+    "start_date_local": "2026-09-21T20:09:50Z",
+    "average_speed": 3.824,
+    "max_speed": 4.68,
+    "has_heartrate": true,
+    "average_heartrate": 141.4
+  },
+  {
     "id": 20207392463,
     "name": "Evening Run",
     "distance": 6604.7,
