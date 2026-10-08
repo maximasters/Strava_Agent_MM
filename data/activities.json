@@ -13,6 +13,19 @@
     "average_heartrate": 160.2
   },
   {
+    "id": 20488008991,
+    "name": "Nike Run Club: ~5K Mix Tape",
+    "distance": 6020.6,
+    "moving_time": 1554,
+    "elapsed_time": 4130,
+    "total_elevation_gain": 58,
+    "start_date_local": "2026-10-07T12:12:44Z",
+    "average_speed": 3.874,
+    "max_speed": 6.26,
+    "has_heartrate": false,
+    "average_heartrate": null
+  },
+  {
     "id": 20463601675,
     "name": "Evening Run",
     "distance": 7205.4,
