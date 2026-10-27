@@ -1,5 +1,18 @@
 [
   {
+    "id": 20741567173,
+    "name": "Afternoon Run",
+    "distance": 7014.9,
+    "moving_time": 1849,
+    "elapsed_time": 1864,
+    "total_elevation_gain": 47,
+    "start_date_local": "2026-10-26T17:57:49Z",
+    "average_speed": 3.794,
+    "max_speed": 4.78,
+    "has_heartrate": true,
+    "average_heartrate": 156.9
+  },
+  {
     "id": 20708926756,
     "name": "Morning Run",
     "distance": 4953,
